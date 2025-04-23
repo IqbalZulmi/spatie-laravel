@@ -149,7 +149,7 @@
                                         Select all
                                     </label>
                                 </div>
-                                @forelse($nama_permissions as $module)
+                                @forelse($permissions as $module => $actions)
                                     <div class="col-6">
                                         <div class="fw-bold">
                                             {{ ucwords(str_replace('_', ' ', $module)) }}
@@ -213,7 +213,7 @@
                                             Select all
                                         </label>
                                     </div>
-                                    @forelse($nama_permissions as $module)
+                                    @forelse($permissions as $module => $actions)
                                         <div class="col-6">
                                             <div class="fw-bold">
                                                 {{ ucwords(str_replace('_', ' ', $module)) }}

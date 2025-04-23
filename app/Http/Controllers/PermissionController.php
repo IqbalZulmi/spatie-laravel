@@ -126,25 +126,28 @@ class PermissionController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id_permission)
+    public function destroy(Request $request)
     {
-        $permission = Permission::findOrFail($id_permission);
+        $ids = explode(',', $request->id); // Sesuai input name di form
 
-        if ($permission->count() < 1) {
+        try {
+            $deleted = Permission::whereIn('id', $ids)->delete();
+
+            if ($deleted === 0) {
+                return redirect()->back()->with([
+                    'notifikasi' => 'Tidak ada data yang dihapus!',
+                    'type' => 'warning',
+                ]);
+            }
+
             return redirect()->back()->with([
-                'notifikasi' =>'Data tidak ditemukan!',
-                'type'=>'error'
+                'notifikasi' => 'Berhasil menghapus ' . $deleted . ' data.',
+                'type' => 'success',
             ]);
-        }
-        if ($permission->delete()) {
+        } catch (\Exception $e) {
             return redirect()->back()->with([
-                'notifikasi'=>"Berhasil menghapus data!",
-                "type"=>"success"
-            ]);
-        }else{
-            return redirect()->back()->with([
-                'notifikasi'=>"Gagal menghapus data!",
-                "type"=>"error",
+                'notifikasi' => 'Gagal menghapus data!',
+                'type' => 'error',
             ]);
         }
     }

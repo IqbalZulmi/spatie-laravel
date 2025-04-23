@@ -69,25 +69,30 @@ class UserController extends Controller
         $user = User::all();
         $roles = Role::all();
 
-        $action = ['create', 'read', 'update', 'delete'];
+        // Ambil semua permission dan kelompokkan berdasarkan prefix (modul)
+        // Contoh: 'user.create' → 'user' => ['create', 'read', ...]
+        $permissions = Permission::all()->groupBy(function ($permission) {
+            return explode('.', $permission->name)[0]; // Ambil prefix modul
+        })->map(function ($groupedPermissions) {
+            // Ambil hanya action-nya, misalnya dari 'user.create' → 'create'
+            $actions = $groupedPermissions->map(function ($permission) {
+                return explode('.', $permission->name)[1];
+            });
 
-        // Ambil semua permission dan kelompokkan berdasarkan nama modul (prefix sebelum titik)
-        // $permissions: Collection (Grouped) -> Semua permissions, dikelompokkan berdasarkan modul (prefix)
-        $permissions = Permission::all()->groupBy(function($permission) {
-            return explode('.', $permission->name)[0]; // contoh: 'user.create' → 'user'
+            // Tentukan urutan preferensi
+            $preferredOrder = ['create', 'read', 'update', 'delete'];
+
+            // Urutkan berdasarkan urutan preferensi
+            return collect($preferredOrder)->filter(function ($action) use ($actions) {
+                return $actions->contains($action);
+            })->values();
         });
 
-        // Ambil nama-nama modul dari key hasil groupBy
-        // $nama_permission: Collection -> List nama modul
-        $nama_permission = $permissions->keys();
-
-        // dd($permissions);
 
         return view('user-assign',[
             'users' => $user,
             'roles' => $roles,
-            'nama_permissions' => $nama_permission,
-            'actions' => $action,
+            'permissions' => $permissions,
         ]);
     }
 

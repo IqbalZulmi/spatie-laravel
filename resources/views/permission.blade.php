@@ -1,16 +1,69 @@
 @extends('html.html')
 
 @push('css')
-
+    <link href="https://cdn.datatables.net/2.2.2/css/dataTables.bootstrap5.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/select/3.0.0/css/select.bootstrap5.css" rel="stylesheet">
+    <style>
+        /* Jika ingin warna teks tetap hitam, gunakan ini */
+        .table.dataTable tbody tr.selected td {
+            color: black !important;
+        }
+    </style>
 @endpush
 
 @push('js')
+    <script src="https://cdn.datatables.net/2.2.2/js/dataTables.js"></script>
+    <script src="https://cdn.datatables.net/2.2.2/js/dataTables.bootstrap5.js"></script>
+    <script src="https://cdn.datatables.net/select/3.0.0/js/dataTables.select.js"></script>
+    <script src="https://cdn.datatables.net/select/3.0.0/js/select.bootstrap5.js"></script>
+    {{-- datatables --}}
     <script>
         $(document).ready(function () {
             // Mendeklarasikan dan menginisialisasi variabel table dengan DataTable
             var table = $('.table').DataTable({
+                columnDefs: [
+                    {
+                        orderable: false,
+                        render: DataTable.render.select(),
+                        targets: 0
+                    }
+                ],
                 order: [],
+                select: {
+                    style: 'os',
+                    selector: 'td:first-child'
+                },
                 info: true,
+            });
+
+            // Menangani klik pada tombol hapus
+            $('#btnHapus').on('click', function () {
+                // Mendapatkan data dari baris yang dipilih
+                var selectedRows = table.rows({ selected: true }).data();
+
+                // Mengecek apakah ada baris yang dipilih
+                if (selectedRows.length === 0) {
+                    Swal.fire({
+                        text: 'Tidak ada data yang dipilih',
+                        icon: 'warning',
+                        confirmButtonText:'OK',
+                        showCloseButton: true,
+                        timer: 2000,
+                    })
+                } else {
+                    // Mengambil ID dari baris yang dipilih
+                    var selectedIds = [];
+                    selectedRows.each(function (rowData) {
+                        console.log(rowData);
+                        selectedIds.push(rowData[0]); // ID pegawai ada di kolom pertama (index 0)
+                    });
+
+                    // Menyimpan ID yang dipilih ke input hidden dalam form
+                    $('#hapusId').val(selectedIds.join(','));
+
+                    // Menampilkan modal hapus
+                    $('#hapusModal').modal('show');
+                }
             });
     });
 
@@ -18,15 +71,29 @@
 
     <script>
         $(document).ready(function () {
+            // Saat "Select All" diklik
             $('.selectAll').on('change', function () {
-                // Cari modal terdekat tempat checkbox ini berada
                 const $modal = $(this).closest('.modal');
-
-                // Checkbox "Select All" di modal ini
                 const isChecked = $(this).is(':checked');
-
-                // Checkbox permission di dalam modal ini saja
                 $modal.find('.permission-checkbox').prop('checked', isChecked);
+            });
+
+            // Saat salah satu checkbox permission diubah
+            $('.permission-checkbox').on('change', function () {
+                const $modal = $(this).closest('.modal');
+                const total = $modal.find('.permission-checkbox').length;
+                const checked = $modal.find('.permission-checkbox:checked').length;
+
+                $modal.find('.selectAll').prop('checked', total === checked);
+            });
+
+            // Inisialisasi saat halaman dimuat
+            $('.modal').each(function () {
+                const $modal = $(this);
+                const total = $modal.find('.permission-checkbox').length;
+                const checked = $modal.find('.permission-checkbox:checked').length;
+
+                $modal.find('.selectAll').prop('checked', total === checked);
             });
         });
     </script>
@@ -64,10 +131,16 @@
                                         <i class="bi bi-plus-circle-fill"></i> Tambah Baru
                                     </button>
                                 </div>
+                                <div class="me-md-2 mb-2">
+                                    <button class="btn btn-danger" id="btnHapus">
+                                        <i class="bi bi-trash"></i> Hapus Pilihan
+                                    </button>
+                                </div>
                             </div>
                             <table class="table table-striped table-hover border table-bordered align-middle">
                                 <thead>
                                     <tr>
+                                        <th></th>
                                         <th>No</th>
                                         <th scope="col">Nama Permission</th>
                                         <th scope="col">Jumlah User</th>
@@ -78,6 +151,7 @@
                                 <tbody>
                                     @forelse ($permissions as $index => $permission )
                                         <tr>
+                                            <td>{{ $permission->id }}</td>
                                             <td>{{ $index+1 }}</td>
                                             <td class="text-capitalize">{{ $permission->name }}</td>
                                             <td>{{ $permission->users->count() }}</td>
@@ -89,11 +163,8 @@
                                                 @endforelse
                                             </td>
                                             <td>
-                                                <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#editModal{{ $permission->id }}">
+                                                <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editModal{{ $permission->id }}">
                                                     <i class="bi bi-pencil-square"></i> Edit
-                                                </button>
-                                                <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#hapusModal{{ $permission->id }}">
-                                                    <i class="bi bi-trash"></i> hapus
                                                 </button>
                                             </td>
                                         </tr>
@@ -144,7 +215,7 @@
                                     </div>
                                     <div class="col-12">
                                         @foreach($actions as $action)
-                                            <input type="checkbox" name="permissions[]" class="form-check-input permission-checkbox @error('permissions') is-invalid @enderror" value="{{old('permissions',$action)}}" required>
+                                            <input type="checkbox" name="permissions[]" class="form-check-input permission-checkbox @error('permissions') is-invalid @enderror" value="{{old('permissions',$action)}}">
                                             <label class="form-check-label text-capitalize" for="checkDefault">
                                                 {{ $action }}
                                             </label>
@@ -166,6 +237,32 @@
         </div>
     </div>
 
+    {{-- hapus modal --}}
+    <div class="modal fade" id="hapusModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5">Hapus Permission</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form action="{{ route('permission.destroy') }}" method="post">
+                        @csrf @method('delete')
+                        <div class="container-fluid">
+                            <input type="hidden" name="id" id="hapusId">
+                            <h4 class="text-capitalize">
+                                Apakah anda yakin ingin <span class="text-danger">menghapus data</span> yang dipilih ?</span>
+                            </h4>
+                        </div>
+                    </div>
+                <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-main">Simpan</button>
+                    </form>
+                </div>
+        </div>
+        </div>
+    </div>
 
 
     @foreach ($permissions as $permission => $data )
@@ -178,7 +275,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <form action="{{ route('permission.update',['permission' => $data->id]) }}" method="POST">
+                        <form action="{{ route('permission.update',['id_permission' => $data->id]) }}" method="POST">
                             @csrf @method('put')
                             <div class="container-fluid">
                                 <div class="row gy-2">
@@ -191,33 +288,6 @@
                                         @enderror
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-main">Simpan</button>
-                        </form>
-                    </div>
-            </div>
-            </div>
-        </div>
-
-    {{-- hapus modal --}}
-        <div class="modal fade" id="hapusModal{{ $data->id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5">Hapus Permission</h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form action="{{ route('permission.destroy',['permission' => $data->id]) }}" method="post">
-                            @csrf @method('delete')
-                            <div class="container-fluid">
-                                <input type="hidden" name="id" id="hapusId">
-                                <h4 class="text-capitalize">
-                                    Apakah anda yakin ingin <span class="text-danger">menghapus permission</span> {{ $data->name }}</span>
-                                </h4>
                             </div>
                         </div>
                     <div class="modal-footer">
